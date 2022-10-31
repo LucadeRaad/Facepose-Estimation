@@ -17,7 +17,7 @@ void draw_polyline(cv::Mat &img, const dlib::full_object_detection& d, const int
 
 void render_face (cv::Mat &img, const dlib::full_object_detection& d)
 {
-    std::cout << "render_face " << d.num_parts() << std::endl;
+    //std::cout << "render_face " << d.num_parts() << std::endl;
 
     DLIB_CASSERT
     (

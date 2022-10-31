@@ -80,7 +80,8 @@ int main()
     {
         //cv::VideoCapture cap(0);
         cv::VideoCapture cap;
- 
+
+        // Change hardcoded ip address to a cli input 
         cap.open("http://10.102.93.92:8000/");
 
         if (!cap.isOpened())
@@ -152,7 +153,7 @@ int main()
             if ( count % SKIP_FRAMES == 0 )
             {
                 faces = detector(cimg_small);
-                cout << "faces " << faces.size() << endl;
+                //cout << "faces " << faces.size() << endl;
             }
             
             // Pose estimation
