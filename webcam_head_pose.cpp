@@ -31,12 +31,25 @@
 #include <dlib/gui_widgets.h>
 #include "render_face.hpp"
 
+#include <string>
+#include <sstream>
+
 using namespace dlib;
 using namespace std;
 
 #define FACE_DOWNSAMPLE_RATIO 4
 #define SKIP_FRAMES 2
 #define OPENCV_FACE_RENDER
+
+#define DESKTOP_WIDTH 480
+#define DESKTOP_HEIGHT 480
+
+#define DISPLAY_WIDTH 480
+#define DISPLAY_HEIGHT 480
+
+#define CAMERA_FRAMERATE 21/1
+#define FLIP 2
+
 
 
 std::vector<cv::Point3d> get_3d_model_points()
@@ -73,35 +86,82 @@ cv::Mat get_camera_matrix(float focal_length, cv::Point2d center)
     return camera_matrix;
 }
 
-
-int main()
+void DisplayVersion()
 {
+    std::cout << "OpenCV version: " 
+                     << cv::getVersionMajor() << 
+                 "." << cv::getVersionMinor() << 
+                 "." << cv::getVersionRevision() 
+                     << std::endl;
+}
+
+string ParseCLI(int argc, char** argv)
+{
+    bool useIP = false;
+
+    std::stringstream ss;
+
+    if (3 > argc)
+    {
+        std::cout << "No arguments, will default to camera!" << std::endl;
+        useIP = false;
+    }
+    else if (3 == argc)
+    {
+        if (strncmp("-ip", argv[1], 3))
+        {
+            useIP = true;
+        }
+        else if (strncmp("-c", argv[1], 2))
+        {
+            useIP = false;
+        }
+    }
+    else if (3 < argc)
+    {
+        std::cout << "Too many arguments, will default to camera!" << std::endl;
+    }
+
+    if (useIP)
+    {
+        ss << "http://" << argv[2] << "/";
+    }
+    else
+    {
+        ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=" << DESKTOP_WIDTH <<
+              ", height=" << DESKTOP_HEIGHT <<
+              ", format=NV12, framerate=" << CAMERA_FRAMERATE <<
+              " ! nvvidconv flip-method=" << FLIP <<
+              " ! video/x-raw, width=" << DISPLAY_WIDTH <<
+              ", height=" << DISPLAY_HEIGHT <<
+              ", format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
+    }
+
+    return ss.str();
+}
+
+
+int main(int argc, char** argv)
+{
+    DisplayVersion();
+
+    string test = ParseCLI(argc, argv);
+
     try
     {
-        //cv::VideoCapture cap(0);
         cv::VideoCapture cap;
 
+        std::cout << test << std::endl;
         // Change hardcoded ip address to a cli input 
-        cap.open("http://10.102.93.92:8000/");
+
+        return 1;
+        cap.open(test);
 
         if (!cap.isOpened())
         {
             cerr << "Unable to connect to camera" << endl;
             return 1;
         }
-
-
-//        cv::Mat frame;
-// 
-//      while (cap.read(frame))
-//      {
-//          cv::imshow("Video feed", frame);
-// 
-//          if (cv::waitKey(25) >= 0)
-//          {
-//              break;
-//          }
-//     }
 
         double fps = 30.0; // Just a place holder. Actual value calculated after 100 frames.
         cv::Mat im;
