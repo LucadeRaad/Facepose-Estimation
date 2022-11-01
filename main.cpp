@@ -12,8 +12,8 @@
 #define INPUT_WIDTH 3264
 #define INPUT_HEIGHT 2464
 
-#define DISPLAY_WIDTH 640
-#define DISPLAY_HEIGHT 480
+#define DISPLAY_WIDTH 480
+#define DISPLAY_HEIGHT 640
 
 #define CAMERA_FRAMERATE 21/1
 #define FLIP 2
@@ -29,15 +29,15 @@ int main(int argc, const char** argv)
 
     std::stringstream ss;
 
-    //ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=3264, height=2464, format=NV12, framerate=21/1 ! nvvidconv flip-method=2 ! video/x-raw, width=480, height=680, format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
+    ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=3264, height=2464, format=NV12, framerate=21/1 ! nvvidconv flip-method=2 ! video/x-raw, width=480, height=680, format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
 
-    ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=" << INPUT_WIDTH <<
-    ", height=" << INPUT_HEIGHT <<
-    ", format=NV12, framerate=" << CAMERA_FRAMERATE <<
-    " ! nvvidconv flip-method=" << FLIP <<
-    " ! video/x-raw, width=" << DISPLAY_WIDTH <<
-    ", height=" << DISPLAY_HEIGHT <<
-    ", format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
+    //ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=" << INPUT_WIDTH <<
+    //", height=" << INPUT_HEIGHT <<
+    //", format=NV12, framerate=" << CAMERA_FRAMERATE <<
+    //" ! nvvidconv flip-method=" << FLIP <<
+    //" ! video/x-raw, width=" << DISPLAY_WIDTH <<
+    //", height=" << DISPLAY_HEIGHT <<
+    //", format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
 
     cv::VideoCapture video;
 

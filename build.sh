@@ -1,2 +1,5 @@
-# clang++ main.cpp -I/usr/local/include/opencv4 -L/usr/local/lib/ -lopencv_video -lopencv_core -lopencv_videoio -lopencv_highgui
-clang++ webcam_head_pose.cpp -I/usr/local/include/opencv4/ -I/usr/local/include/ -L/usr/local/lib/ -lpthread -lopencv_video -lopencv_core -lopencv_videoio -lopencv_highgui -lopencv_imgproc -lopencv_calib3d -ldlib -llapack -lblas -lgif
+FILE="webcam_head_pose.cpp"
+
+# clang++ main.cpp -I/usr/local/include/opencv4 -L/usr/local/lib/ -lopencv_video -lopencv_core -lopencv_videoio -lopencv_highgui -lopencv_imgproc
+clang++ $FILE -O3 -I/usr/local/include/opencv4/ -I/usr/local/include/ -L/usr/local/lib/ -lpthread -lopencv_video -lopencv_core -lopencv_videoio -lopencv_highgui -lopencv_imgproc -lopencv_calib3d -ldlib -llapack -lblas -lgif -o FaceposeEstimation.exe
+echo $FILE

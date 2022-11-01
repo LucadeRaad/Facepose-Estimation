@@ -29,7 +29,7 @@
 #include <dlib/image_processing/render_face_detections.h>
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
-#include "render_face.hpp"
+//#include "render_face.hpp"
 
 #include <string>
 #include <sstream>
@@ -49,7 +49,6 @@ using namespace std;
 
 #define CAMERA_FRAMERATE 21/1
 #define FLIP 2
-
 
 
 std::vector<cv::Point3d> get_3d_model_points()
@@ -101,21 +100,27 @@ string ParseCLI(int argc, char** argv)
 
     std::stringstream ss;
 
-    if (3 > argc)
+    std::cout << argc << std::endl;
+
+    if (2 > argc)
     {
         std::cout << "No arguments, will default to camera!" << std::endl;
         useIP = false;
     }
     else if (3 == argc)
     {
-        if (strncmp("-ip", argv[1], 3))
+        if (strncmp("-ip", argv[1], 3) == 0)
         {
+            std::cout << "server input specified" << std::endl;
             useIP = true;
         }
-        else if (strncmp("-c", argv[1], 2))
+        else if (strncmp("-c", argv[1], 2) == 0)
         {
+            std::cout << "camera input specified" << std::endl;
             useIP = false;
         }
+        
+        
     }
     else if (3 < argc)
     {
@@ -128,14 +133,17 @@ string ParseCLI(int argc, char** argv)
     }
     else
     {
-        ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=" << DESKTOP_WIDTH <<
-              ", height=" << DESKTOP_HEIGHT <<
-              ", format=NV12, framerate=" << CAMERA_FRAMERATE <<
-              " ! nvvidconv flip-method=" << FLIP <<
-              " ! video/x-raw, width=" << DISPLAY_WIDTH <<
-              ", height=" << DISPLAY_HEIGHT <<
-              ", format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
+        ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=1280, height=720, format=NV12, framerate=21/1 ! nvvidconv flip-method=2 ! video/x-raw, width=48    0, height=680, format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
+        //ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=" << DESKTOP_WIDTH <<
+        //      ", height=" << DESKTOP_HEIGHT <<
+        //      ", format=NV12, framerate=" << CAMERA_FRAMERATE <<
+        //      " ! nvvidconv flip-method=" << FLIP <<
+        //      " ! video/x-raw, width=" << DISPLAY_WIDTH <<
+        //      ", height=" << DISPLAY_HEIGHT <<
+        //      ", format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
     }
+
+    std::cout << "Reading input from: " << (useIP ? "a server" : "the camera") << ". Settings: " << ss.str() << std::endl;
 
     return ss.str();
 }
@@ -145,17 +153,17 @@ int main(int argc, char** argv)
 {
     DisplayVersion();
 
-    string test = ParseCLI(argc, argv);
+    //string test = ParseCLI(argc, argv);
 
     try
     {
         cv::VideoCapture cap;
 
-        std::cout << test << std::endl;
+        //std::cout << test << std::endl;
         // Change hardcoded ip address to a cli input 
 
-        return 1;
-        cap.open(test);
+        //return 1;
+        cap.open(ParseCLI(argc, argv));
 
         if (!cap.isOpened())
         {
@@ -172,34 +180,27 @@ int main(int argc, char** argv)
         cv::resize(im, im_small, cv::Size(), 1.0/FACE_DOWNSAMPLE_RATIO, 1.0/FACE_DOWNSAMPLE_RATIO);
         cv::resize(im, im_display, cv::Size(), 0.5, 0.5);
         
-        cv::Size size = im.size();
-
+        cv::Size size = im.size(); 
         
-        
-#ifndef OPENCV_FACE_RENDER 
-        image_window win;
-#endif
-
         // Load face detection and pose estimation models.
         frontal_face_detector detector = get_frontal_face_detector();
         shape_predictor pose_model;
-        deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
+        deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model; //try 5 face landmarks aswell
 
         int count = 0;
         std::vector<rectangle> faces;
         // Grab and process frames until the main window is closed by the user.
         double t = (double)cv::getTickCount();
-#ifdef OPENCV_FACE_RENDER
-        while(1)
-#else
-        while(!win.is_closed())
-#endif
+        while (1)
         {
-            //std::cout << count << std::endl;
+            // std::cout << count << std::endl;
+
             if ( count == 0 )
                 t = cv::getTickCount();
             // Grab a frame
             cap >> im;
+
+            //cap.read(im);
             
             // Resize image for face detection
             cv::resize(im, im_small, cv::Size(), 1.0/FACE_DOWNSAMPLE_RATIO, 1.0/FACE_DOWNSAMPLE_RATIO);
@@ -213,7 +214,7 @@ int main(int argc, char** argv)
             if ( count % SKIP_FRAMES == 0 )
             {
                 faces = detector(cimg_small);
-                //cout << "faces " << faces.size() << endl;
+                // cout << "faces " << faces.size() << endl;
             }
             
             // Pose estimation
@@ -232,8 +233,6 @@ int main(int argc, char** argv)
                             );
                 full_object_detection shape = pose_model(cimg, r);
                 shapes.push_back(shape);
-#ifdef OPENCV_FACE_RENDER
-                render_face(im, shape);
                 std::vector<cv::Point2d> image_points = get_2d_image_points(shape);
                 double focal_length = im.cols;
                 cv::Mat camera_matrix = get_camera_matrix(focal_length, cv::Point2d(im.cols/2,im.rows/2));
@@ -246,68 +245,31 @@ int main(int argc, char** argv)
                 
                 cv::solvePnP(model_points, image_points, camera_matrix, dist_coeffs, rotation_vector, translation_vector);
 
-                //cv::Rodrigues(rotation_vector, rotation_matrix);
-               
-                                std::vector<cv::Point3d> nose_end_point3D;
-                                std::vector<cv::Point2d> nose_end_point2D;
-                                nose_end_point3D.push_back(cv::Point3d(0,0,1000.0));
+                std::vector<cv::Point3d> nose_end_point3D;
+                std::vector<cv::Point2d> nose_end_point2D;
+                nose_end_point3D.push_back(cv::Point3d(0, 0, 1000.0));
 
-                                cv::projectPoints(nose_end_point3D, rotation_vector, translation_vector, camera_matrix, dist_coeffs, nose_end_point2D);     
-//                cv::Point2d projected_point = find_projected_point(rotation_matrix, translation_vector, camera_matrix, cv::Point3d(0,0,1000.0));
-                                cv::line(im,image_points[0], nose_end_point2D[0], cv::Scalar(255,0,0), 2);
-//                cv::line(im,image_points[0], projected_point, cv::Scalar(0,0,255), 2);
-                
-                
-                
-                
-#endif
+                cv::projectPoints(nose_end_point3D, rotation_vector, translation_vector, camera_matrix, dist_coeffs, nose_end_point2D);     
+                cv::line(im,image_points[0], nose_end_point2D[0], cv::Scalar(255, 0, 255), 10);   
             }
-                // Uncomment the line below to see FPS    
+
             //cv::putText(im, cv::format("fps %.2f",fps), cv::Point(50, size.height - 50), cv::FONT_HERSHEY_COMPLEX, 1.5, cv::Scalar(0, 0, 255), 3);
             
-            
-            // Display it all on the screen
-#ifdef OPENCV_FACE_RENDER
-            
-                // Resize image for display
-                im_display = im;
-                cv::resize(im, im_display, cv::Size(), 0.5, 0.5);
-                cv::imshow("Fast Facial Landmark Detector", im_display);
+            // Resize image for display
+            im_display = im;
+            cv::resize(im, im_display, cv::Size(), 0.5, 0.5);
+            cv::imshow("Fast Facial Landmark Detector", im_display);
 
-                // WaitKey slows down the runtime quite a lot
-                // So check every 15 frames
-            
-            
-                if ( count % 15 == 0)
-                {
-                    int k = cv::waitKey(1);
-                    // Quit if 'q' or ESC is pressed
-                    if ( k == 'q' || k == 27)
-                    {
-                        return 0;
-                    }
-                }
-            
-            
- 
-#else
- 
-                win.clear_overlay();
-                win.set_image(cimg);
-                win.add_overlay(render_face_detections(shapes));
-#endif
-            
             count++;
-            
+
+            cv::pollKey();
+
             if ( count == 100)
             {
                 t = ((double)cv::getTickCount() - t)/cv::getTickFrequency();
-                fps = 100.0/t;
+                fps = 100.0 / t;
                 count = 0;
             }
-            
-
-            
         }
     }
     catch(serialization_error& e)
