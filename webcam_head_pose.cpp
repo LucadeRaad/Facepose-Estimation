@@ -1,55 +1,27 @@
-// The contents of this file are in the public domain. See LICENSE_FOR_EXAMPLE_PROGRAMS.txt
-/*
-    This example program shows how to find frontal human faces in an image and
-    estimate their pose.  The pose takes the form of 68 landmarks.  These are
-    points on the face such as the corners of the mouth, along the eyebrows, on
-    the eyes, and so forth.  
-    
-    This example is essentially just a version of the face_landmark_detection_ex.cpp
-    example modified to use OpenCV's VideoCapture object to read from a camera instead 
-    of files.
-    Finally, note that the face detector is fastest when compiled with at least
-    SSE2 instructions enabled.  So if you are using a PC with an Intel or AMD
-    chip then you should enable at least SSE2 instructions.  If you are using
-    cmake to compile this program you can enable them by using one of the
-    following commands when you create the build project:
-        cmake path_to_dlib_root/examples -DUSE_SSE2_INSTRUCTIONS=ON
-        cmake path_to_dlib_root/examples -DUSE_SSE4_INSTRUCTIONS=ON
-        cmake path_to_dlib_root/examples -DUSE_AVX_INSTRUCTIONS=ON
-    This will set the appropriate compiler options for GCC, clang, Visual
-    Studio, or the Intel compiler.  If you are using another compiler then you
-    need to consult your compiler's manual to determine how to enable these
-    instructions.  Note that AVX is the fastest but requires a CPU from at least
-    2011.  SSE4 is the next fastest and is supported by most current machines.  
-*/
-
 #include <dlib/opencv.h>
 #include <opencv2/opencv.hpp>
 #include <dlib/image_processing/frontal_face_detector.h>
 #include <dlib/image_processing/render_face_detections.h>
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
-//#include "render_face.hpp"
 
 #include <string>
 #include <sstream>
 
-using namespace dlib;
 using namespace std;
 
 #define FACE_DOWNSAMPLE_RATIO 4
 #define SKIP_FRAMES 2
-#define OPENCV_FACE_RENDER
 
-#define DESKTOP_WIDTH 480
-#define DESKTOP_HEIGHT 480
+#define FACE_RADIUS 270
 
-#define DISPLAY_WIDTH 480
-#define DISPLAY_HEIGHT 480
+enum FaceDirection { FORWARD, LEFT, RIGHT, UP, DOWN, NONE };
+static const char *DirectionStrings[] = {"Forward", "Left", "Right", "Up", "Down", "None"};
 
-#define CAMERA_FRAMERATE 21/1
-#define FLIP 2
-
+const char *GetDirectionString(int val)
+{
+    return DirectionStrings[val];
+}
 
 std::vector<cv::Point3d> get_3d_model_points()
 {
@@ -63,10 +35,9 @@ std::vector<cv::Point3d> get_3d_model_points()
     modelPoints.push_back(cv::Point3d(150.0f, -150.0f, -125.0f));
     
     return modelPoints;
-    
 }
 
-std::vector<cv::Point2d> get_2d_image_points(full_object_detection &d)
+std::vector<cv::Point2d> get_2d_image_points(dlib::full_object_detection &d)
 {
     std::vector<cv::Point2d> image_points;
     image_points.push_back( cv::Point2d( d.part(30).x(), d.part(30).y() ) );    // Nose tip
@@ -76,7 +47,6 @@ std::vector<cv::Point2d> get_2d_image_points(full_object_detection &d)
     image_points.push_back( cv::Point2d( d.part(48).x(), d.part(48).y() ) );    // Left Mouth corner
     image_points.push_back( cv::Point2d( d.part(54).x(), d.part(54).y() ) );    // Right mouth corner
     return image_points;
-
 }
 
 cv::Mat get_camera_matrix(float focal_length, cv::Point2d center)
@@ -100,8 +70,6 @@ string ParseCLI(int argc, char** argv)
 
     std::stringstream ss;
 
-    std::cout << argc << std::endl;
-
     if (2 > argc)
     {
         std::cout << "No arguments, will default to camera!" << std::endl;
@@ -118,9 +86,7 @@ string ParseCLI(int argc, char** argv)
         {
             std::cout << "camera input specified" << std::endl;
             useIP = false;
-        }
-        
-        
+        } 
     }
     else if (3 < argc)
     {
@@ -134,13 +100,6 @@ string ParseCLI(int argc, char** argv)
     else
     {
         ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=1280, height=720, format=NV12, framerate=21/1 ! nvvidconv flip-method=2 ! video/x-raw, width=48    0, height=680, format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
-        //ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=" << DESKTOP_WIDTH <<
-        //      ", height=" << DESKTOP_HEIGHT <<
-        //      ", format=NV12, framerate=" << CAMERA_FRAMERATE <<
-        //      " ! nvvidconv flip-method=" << FLIP <<
-        //      " ! video/x-raw, width=" << DISPLAY_WIDTH <<
-        //      ", height=" << DISPLAY_HEIGHT <<
-        //      ", format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
     }
 
     std::cout << "Reading input from: " << (useIP ? "a server" : "the camera") << ". Settings: " << ss.str() << std::endl;
@@ -153,16 +112,10 @@ int main(int argc, char** argv)
 {
     DisplayVersion();
 
-    //string test = ParseCLI(argc, argv);
-
     try
     {
         cv::VideoCapture cap;
 
-        //std::cout << test << std::endl;
-        // Change hardcoded ip address to a cli input 
-
-        //return 1;
         cap.open(ParseCLI(argc, argv));
 
         if (!cap.isOpened())
@@ -183,12 +136,12 @@ int main(int argc, char** argv)
         cv::Size size = im.size(); 
         
         // Load face detection and pose estimation models.
-        frontal_face_detector detector = get_frontal_face_detector();
-        shape_predictor pose_model;
-        deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model; //try 5 face landmarks aswell
+        dlib::frontal_face_detector detector = dlib::get_frontal_face_detector();
+        dlib::shape_predictor pose_model;
+        dlib::deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model; //try 5 face landmarks aswell
 
         int count = 0;
-        std::vector<rectangle> faces;
+        std::vector<dlib::rectangle> faces;
         // Grab and process frames until the main window is closed by the user.
         double t = (double)cv::getTickCount();
         while (1)
@@ -196,20 +149,19 @@ int main(int argc, char** argv)
             // std::cout << count << std::endl;
 
             if ( count == 0 )
+            {
                 t = cv::getTickCount();
-            // Grab a frame
-            cap >> im;
+            }
 
-            //cap.read(im);
+            cap >> im;
             
             // Resize image for face detection
             cv::resize(im, im_small, cv::Size(), 1.0/FACE_DOWNSAMPLE_RATIO, 1.0/FACE_DOWNSAMPLE_RATIO);
             
             // Change to dlib's image format. No memory is copied.
-            cv_image<bgr_pixel> cimg_small(im_small);
-            cv_image<bgr_pixel> cimg(im);
+            dlib::cv_image<dlib::bgr_pixel> cimg_small(im_small);
+            dlib::cv_image<dlib::bgr_pixel> cimg(im);
             
-
             // Detect faces 
             if ( count % SKIP_FRAMES == 0 )
             {
@@ -220,26 +172,27 @@ int main(int argc, char** argv)
             // Pose estimation
             std::vector<cv::Point3d> model_points = get_3d_model_points();
             
-            
             // Find the pose of each face.
-            std::vector<full_object_detection> shapes;
+            std::vector<dlib::full_object_detection> shapes;
             for (unsigned long i = 0; i < faces.size(); ++i)
             {
-                rectangle r(
+                dlib::rectangle r(
                             (long)(faces[i].left() * FACE_DOWNSAMPLE_RATIO),
                             (long)(faces[i].top() * FACE_DOWNSAMPLE_RATIO),
                             (long)(faces[i].right() * FACE_DOWNSAMPLE_RATIO),
                             (long)(faces[i].bottom() * FACE_DOWNSAMPLE_RATIO)
                             );
-                full_object_detection shape = pose_model(cimg, r);
+
+                dlib::full_object_detection shape = pose_model(cimg, r);
                 shapes.push_back(shape);
                 std::vector<cv::Point2d> image_points = get_2d_image_points(shape);
+
                 double focal_length = im.cols;
+
                 cv::Mat camera_matrix = get_camera_matrix(focal_length, cv::Point2d(im.cols/2,im.rows/2));
                 cv::Mat rotation_vector;
                 cv::Mat rotation_matrix;
                 cv::Mat translation_vector;
-
                 
                 cv::Mat dist_coeffs = cv::Mat::zeros(4,1,cv::DataType<double>::type);
                 
@@ -250,7 +203,38 @@ int main(int argc, char** argv)
                 nose_end_point3D.push_back(cv::Point3d(0, 0, 1000.0));
 
                 cv::projectPoints(nose_end_point3D, rotation_vector, translation_vector, camera_matrix, dist_coeffs, nose_end_point2D);     
-                cv::line(im,image_points[0], nose_end_point2D[0], cv::Scalar(255, 0, 255), 10);   
+                cv::line(im, image_points[0], nose_end_point2D[0], cv::Scalar(255, 0, 255), 10);
+
+                double dist = cv::norm(image_points[0] - nose_end_point2D[0]);
+               
+                //std::cout << "distance from the center: " << dist << std::endl;
+ 
+                bool isFacingCamera = (dist < FACE_RADIUS);
+
+                FaceDirection direction = NONE;
+
+                if (!isFacingCamera)
+                {
+                    if (image_points[0].x > nose_end_point2D[0].x)
+                    {
+                        direction = LEFT;
+                    }
+                    else
+                    {
+                        direction = RIGHT;
+                    }
+                }
+                else
+                {
+                    direction = FORWARD;
+                }
+            
+
+                cv::Scalar radiusColor = (isFacingCamera) ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 250);
+
+                cv::putText(im, cv::format("Facing %s", GetDirectionString(direction)), cv::Point(50, size.height - 50), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 255), 5);
+
+                cv::circle(im, image_points[0], FACE_RADIUS, radiusColor, 1);
             }
 
             //cv::putText(im, cv::format("fps %.2f",fps), cv::Point(50, size.height - 50), cv::FONT_HERSHEY_COMPLEX, 1.5, cv::Scalar(0, 0, 255), 3);
@@ -264,7 +248,7 @@ int main(int argc, char** argv)
 
             cv::pollKey();
 
-            if ( count == 100)
+            if (count == 100)
             {
                 t = ((double)cv::getTickCount() - t)/cv::getTickFrequency();
                 fps = 100.0 / t;
@@ -272,7 +256,7 @@ int main(int argc, char** argv)
             }
         }
     }
-    catch(serialization_error& e)
+    catch(dlib::serialization_error& e)
     {
         cout << "You need dlib's default face landmarking model file to run this example." << endl;
         cout << "You can get it from the following URL: " << endl;
