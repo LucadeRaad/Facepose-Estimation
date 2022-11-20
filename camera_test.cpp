@@ -33,7 +33,7 @@ int main(int argc, const char** argv)
 
     std::cout << GPIO::JETSON_INFO() << std::endl;
 
-    return;
+    return 0;
 
     ss << "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=3264, height=2464, format=NV12, framerate=21/1 ! nvvidconv flip-method=2 ! video/x-raw, width=480, height=680, format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink";
 
