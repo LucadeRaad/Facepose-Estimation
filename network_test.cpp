@@ -1,14 +1,20 @@
 #include <iostream>
+#include <sstream>
+#include <thread>
+#include <unistd.h>
 
 #include "httplib.h"
 
-int main(int agc, char** argv)
+void do_http_get(std::string host, int port, int pan, int tilt)
 {
-    //std::cout << GPIO::JETSON_INFO() << std::endl;
+    std::cout << "GET " << host << ":" << port << std::endl;
 
-    httplib::Client cli("localhost", 5000);
+    httplib::Client cli(host, port);
 
-    if (auto res = cli.Get("/aim_camera?pan=100&tilt=25"))
+    std::stringstream uri;
+    uri << "/aim_camera?pan=" << pan << "&tilt=" << tilt;
+
+    if (auto res = cli.Get(uri.str()))
     {
         if (res->status == 200)
         {
@@ -21,7 +27,17 @@ int main(int agc, char** argv)
         
         std::cout << "HTTP error: " << httplib::to_string(err) << std::endl;
     }
+}
 
+
+int main(int agc, char** argv)
+{
+    std::thread http_thread(do_http_get, "localhost", 5000, 180, 25);
+
+    http_thread.detach();
+
+    sleep(5);
 
     return 0;
 }
+

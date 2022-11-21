@@ -33,3 +33,6 @@
 
 # Machine learning data
 *.dat
+
+# cmake build directory
+build/
