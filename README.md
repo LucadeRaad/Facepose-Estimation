@@ -10,6 +10,8 @@ build/Pinocchio: head pose estimation which can display output to a debug video,
 `mkdir build; cd build; cmake ..; cmake --build .`
 
 The 'build' directory will have the following programs:
+
 Pinocchio: head pose estimation
+
 Maia: a test program
 
