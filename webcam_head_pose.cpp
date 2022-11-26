@@ -4,16 +4,30 @@
 #include <dlib/image_processing/render_face_detections.h>
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
+#include "httplib.h"
 
 #include <string>
 #include <sstream>
-
-using namespace std;
+#include <thread>
+#include <algorithm>
 
 #define FACE_DOWNSAMPLE_RATIO 4
 #define SKIP_FRAMES 2
 
 #define FACE_RADIUS 270
+
+#define OPENCV_PIXEL_WIDTH 1600
+
+#define START_PAN 90
+#define START_TILT 25
+
+int current_tilt = START_TILT;
+int current_pan = START_PAN;
+
+int recent_change = 0;
+
+// Eventually remove this!
+using namespace std;
 
 enum FaceDirection { FORWARD, LEFT, RIGHT, UP, DOWN, NONE };
 static const char *DirectionStrings[] = {"Forward", "Left", "Right", "Up", "Down", "None"};
@@ -107,6 +121,72 @@ string ParseCLI(int argc, char** argv)
     return ss.str();
 }
 
+void do_http_get(std::string host, int port, int x, int y)
+{
+    //return;
+
+//    if (x < 1100 && x > 900)
+//    {
+//        std::cout << "In the center!" << std::endl;
+//        return;
+//    }
+
+    //x /= 100;
+
+//    if (x < 900 && current_pan > 0)
+//    {
+//        std::cout << "left?" << std::endl;
+//        current_pan -= (x / 100);
+//    }
+//    else if (x > 1100 && current_pan < 180)
+//    {
+//        std::cout << "right?" << std::endl;
+//        current_pan += (x / 100);
+//    }
+//    else
+//    {
+//        return;
+//    }
+
+    float rotation = std::clamp(x, 0, OPENCV_PIXEL_WIDTH);
+
+    rotation -= OPENCV_PIXEL_WIDTH / 2;
+
+    // Map X to the degrees of movement that the servo will need to do
+    rotation *= 9/8;
+
+    rotation /= 10;
+
+    std::cout << "x " << rotation << std::endl;
+
+    current_pan += rotation;
+
+    current_pan = std::clamp(current_pan, 0, 180);
+
+    int pan = current_pan;
+    int tilt = current_tilt;
+
+    std::cout << "PAN " << pan << " TILT" << tilt << std::endl;
+ 
+    httplib::Client cli(host, port);
+ 
+    std::stringstream uri;
+    uri << "/aim_camera?pan=" << pan << "&tilt=" << tilt;
+ 
+    if (auto res = cli.Get(uri.str()))
+    {
+        if (res->status == 200)
+        {
+            std::cout << res->body << std::endl;
+        }
+    }
+    else
+    {
+        auto err = res.error();
+
+        std::cout << "HTTP error: " << httplib::to_string(err) << std::endl;
+    }
+}
 
 int main(int argc, char** argv)
 {
@@ -206,8 +286,16 @@ int main(int argc, char** argv)
                 cv::line(im, image_points[0], nose_end_point2D[0], cv::Scalar(255, 0, 255), 10);
 
                 double dist = cv::norm(image_points[0] - nose_end_point2D[0]);
-               
+
+                if (0 == (count % 5))
+                {
+                    std::thread http_thread(do_http_get, "localhost", 5000, nose_end_point2D[0].x, nose_end_point2D[0].y);
+                    http_thread.detach();
+                }
+
                 //std::cout << "distance from the center: " << dist << std::endl;
+
+                //std::cout << "Nose X: " << nose_end_point2D[0].x << " Nose Y: " << nose_end_point2D[0].y << std::endl;
  
                 bool isFacingCamera = (dist < FACE_RADIUS);
 

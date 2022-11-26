@@ -47,8 +47,11 @@ class ServoHandler(threading.Thread):
                 print("moving")
 
                 # If exponential is required: take dist from current to goal divide it by 2 and then add it to current pan/tilt:q
-                # self.kit.servo[0].angle = self.goal_pan
-                # self.kit.servo[1].angle = self.goal_tilt
+                self.kit.servo[0].angle = self.goal_pan
+                self.kit.servo[1].angle = self.goal_tilt
+
+                return
+
                 distance_pan = abs(self.goal_pan - current_pan) 
 
                 if distance_pan < self.SNAP_ANGLE:
