@@ -148,14 +148,18 @@ void do_http_get(std::string host, int port, int x, int y)
 //        return;
 //    }
 
-    float rotation = std::clamp(x, 0, OPENCV_PIXEL_WIDTH);
+    //float rotation = std::clamp(x, 0, OPENCV_PIXEL_WIDTH);
 
-    rotation -= OPENCV_PIXEL_WIDTH / 2;
+    //rotation -= OPENCV_PIXEL_WIDTH / 2;
 
     // Map X to the degrees of movement that the servo will need to do
-    rotation *= 9/8;
+    //rotation *= 9/8;
 
-    rotation /= 10;
+    //rotation /= 10;
+
+    float rotation = x;
+
+    rotation /= 100;
 
     std::cout << "x " << rotation << std::endl;
 
@@ -287,9 +291,22 @@ int main(int argc, char** argv)
 
                 double dist = cv::norm(image_points[0] - nose_end_point2D[0]);
 
-                if (0 == (count % 5))
+                CvPoint middle;
+
+                cv::Size sz = im.size();
+
+                middle.x = sz.width / 2;
+                middle.y = sz.height / 2;
+
+                int dist_from_middle = image_points[0].x - middle.x;
+
+                //std::cout << "dist x " << dist_from_middle << std::endl;
+
+                cv::line(im, image_points[0], middle, cv::Scalar(255, 0, 255), 5);
+
+                if (0 == (count % 4))
                 {
-                    std::thread http_thread(do_http_get, "localhost", 5000, nose_end_point2D[0].x, nose_end_point2D[0].y);
+                    std::thread http_thread(do_http_get, "localhost", 5000, dist_from_middle, nose_end_point2D[0].y);
                     http_thread.detach();
                 }
 
