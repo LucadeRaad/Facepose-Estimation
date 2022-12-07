@@ -1,0 +1,15 @@
+How to build dlib:
+
+Do this in the desktop directory, outside of any exisiting git repo
+
+$ git clone https://github.com/davisking/dlib.git
+
+$ cd dlib
+
+$ cmake ..
+
+$ make
+
+$ sudo make install
+
+$ sudo ldconfig
