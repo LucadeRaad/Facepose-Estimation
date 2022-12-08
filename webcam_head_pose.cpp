@@ -16,10 +16,14 @@
 
 #define FACE_RADIUS 270
 
-#define OPENCV_PIXEL_WIDTH 1600
+#define OPENCV_PIXELS_MAP_TO_PAN 40
+#define OPENCV_PIXELS_MAP_TO_TILT 30
 
 #define START_PAN 90
 #define START_TILT 25
+
+#define MIN_ANGLE 0
+#define MAX_ANGLE 180
 
 int current_tilt = START_TILT;
 int current_pan = START_PAN;
@@ -31,6 +35,8 @@ using namespace std;
 
 enum FaceDirection { FORWARD, LEFT, RIGHT, UP, DOWN, NONE };
 static const char *DirectionStrings[] = {"Forward", "Left", "Right", "Up", "Down", "None"};
+
+enum ServoAngle { PAN, TILT };
 
 const char *GetDirectionString(int val)
 {
@@ -121,56 +127,41 @@ string ParseCLI(int argc, char** argv)
     return ss.str();
 }
 
+void SetAngleRotation(int distance, ServoAngle angle)
+{
+    float rotation = distance;
+
+    if (ServoAngle::PAN == angle)
+    {
+        rotation /= OPENCV_PIXELS_MAP_TO_PAN;
+
+        current_pan += rotation;
+    }
+    else if (ServoAngle::TILT == angle)
+    {
+        rotation /= OPENCV_PIXELS_MAP_TO_TILT;
+
+        current_tilt -= rotation;
+    }
+    else
+    {
+        std::cout << "Unknown angle: " << angle << "!"<< std::endl;
+    }
+}
+
 void do_http_get(std::string host, int port, int x, int y)
 {
-    //return;
+    SetAngleRotation(x, ServoAngle::PAN);
+    SetAngleRotation(y, ServoAngle::TILT);
 
-//    if (x < 1100 && x > 900)
-//    {
-//        std::cout << "In the center!" << std::endl;
-//        return;
-//    }
+    std::clamp(current_pan, 0, 180);
 
-    //x /= 100;
-
-//    if (x < 900 && current_pan > 0)
-//    {
-//        std::cout << "left?" << std::endl;
-//        current_pan -= (x / 100);
-//    }
-//    else if (x > 1100 && current_pan < 180)
-//    {
-//        std::cout << "right?" << std::endl;
-//        current_pan += (x / 100);
-//    }
-//    else
-//    {
-//        return;
-//    }
-
-    //float rotation = std::clamp(x, 0, OPENCV_PIXEL_WIDTH);
-
-    //rotation -= OPENCV_PIXEL_WIDTH / 2;
-
-    // Map X to the degrees of movement that the servo will need to do
-    //rotation *= 9/8;
-
-    //rotation /= 10;
-
-    float rotation = x;
-
-    rotation /= 100;
-
-    std::cout << "x " << rotation << std::endl;
-
-    current_pan += rotation;
-
-    current_pan = std::clamp(current_pan, 0, 180);
+    std::clamp(current_tilt, 0, 180);
 
     int pan = current_pan;
     int tilt = current_tilt;
 
-    std::cout << "PAN " << pan << " TILT" << tilt << std::endl;
+    std::cout << "PAN: " << pan << " TILT: " << tilt << std::endl;
  
     httplib::Client cli(host, port);
  
@@ -300,13 +291,10 @@ int main(int argc, char** argv)
 
                 int dist_from_middle = image_points[0].x - middle.x;
 
-                //std::cout << "dist x " << dist_from_middle << std::endl;
-
-                cv::line(im, image_points[0], middle, cv::Scalar(255, 0, 255), 5);
-
                 if (0 == (count % 4))
                 {
-                    std::thread http_thread(do_http_get, "localhost", 5000, dist_from_middle, nose_end_point2D[0].y);
+                    std::thread http_thread(do_http_get, "localhost", 5000, image_points[0].x - middle.x, image_points[0].y - middle.y);
+
                     http_thread.detach();
                 }
 
