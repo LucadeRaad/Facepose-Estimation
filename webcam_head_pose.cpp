@@ -163,7 +163,7 @@ void SetAngleRotation(int distance, ServoAngle angle)
 void do_http_get(std::string host, int port, int x, int y)
 {
     SetAngleRotation(x, ServoAngle::PAN);
-    //SetAngleRotation(y, ServoAngle::TILT);
+    SetAngleRotation(y, ServoAngle::TILT);
 
     std::clamp(current_pan, 0, 180);
 
