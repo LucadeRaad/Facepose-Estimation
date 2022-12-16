@@ -17,7 +17,10 @@
 #define FACE_RADIUS 270
 
 #define OPENCV_PIXELS_MAP_TO_PAN 40
-#define OPENCV_PIXELS_MAP_TO_TILT 30
+#define OPENCV_PIXELS_MAP_TO_TILT 60
+
+#define PAN_ERROR 3
+#define TILT_ERROR 1
 
 #define START_PAN 90
 #define START_TILT 25
@@ -27,8 +30,6 @@
 
 int current_tilt = START_TILT;
 int current_pan = START_PAN;
-
-int recent_change = 0;
 
 // Eventually remove this!
 using namespace std;
@@ -135,11 +136,21 @@ void SetAngleRotation(int distance, ServoAngle angle)
     {
         rotation /= OPENCV_PIXELS_MAP_TO_PAN;
 
+        if (abs(rotation) < PAN_ERROR)
+        {
+            return;
+        }
+
         current_pan += rotation;
     }
     else if (ServoAngle::TILT == angle)
     {
         rotation /= OPENCV_PIXELS_MAP_TO_TILT;
+
+        if (abs(rotation) < TILT_ERROR)
+        {
+            return;
+        }
 
         current_tilt -= rotation;
     }
@@ -152,7 +163,7 @@ void SetAngleRotation(int distance, ServoAngle angle)
 void do_http_get(std::string host, int port, int x, int y)
 {
     SetAngleRotation(x, ServoAngle::PAN);
-    SetAngleRotation(y, ServoAngle::TILT);
+    //SetAngleRotation(y, ServoAngle::TILT);
 
     std::clamp(current_pan, 0, 180);
 

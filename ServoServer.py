@@ -20,6 +20,8 @@ class ServoHandler(threading.Thread):
 
         self.SNAP_ANGLE = 2
 
+        self.SPEED = (3 / 4)
+
         self.kit = ServoKit(channels=16)
 
     def set_goals(self, pan, tilt):
@@ -57,14 +59,14 @@ class ServoHandler(threading.Thread):
                 if distance_pan < self.SNAP_ANGLE:
                     self.kit.servo[0].angle = self.goal_pan 
                 else:
-                    self.kit.servo[0].angle = ((self.goal_pan - current_pan) / 2) + current_pan 
+                    self.kit.servo[0].angle = ((self.goal_pan - current_pan) * self.SPEED) + current_pan 
 
                 distance_tilt = abs(self.goal_tilt - current_tilt) 
 
                 if distance_tilt < self.SNAP_ANGLE:
                     self.kit.servo[1].angle = self.goal_tilt 
                 else:
-                    self.kit.servo[1].angle = ((self.goal_tilt - current_tilt) / 2) + current_tilt 
+                    self.kit.servo[1].angle = ((self.goal_tilt - current_tilt) * self.SPEED) + current_tilt 
 
 api = Flask(__name__)
 
